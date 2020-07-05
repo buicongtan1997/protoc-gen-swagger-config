@@ -18,17 +18,19 @@ config_version: 3
 http:
  rules:{{ range $item := . }}
  - selector: {{$item.PkgName}}.{{$item.ServiceName}}.{{$item.MethodName}}
-   post: /{{$item.PkgName}}/{{$item.ServiceName}}/{{$item.MethodName}}
+   post: /{{$item.Prefix}}{{$item.PkgName}}/{{$item.ServiceName}}/{{$item.MethodName}}
    body: "*"{{ end }}
 `
 
-var input, output string
+var (
+	input, output, prefix string
+)
 
 func init() {
 	flag.StringVar(&input, "i", "", "input proto file dir")
 	flag.StringVar(&output, "o", "", "output config yaml")
+	flag.StringVar(&output, "p", "", "prefix for url")
 	flag.Parse()
-
 
 	if input == "" || output == "" {
 		log.Fatal(flag.ErrHelp)
@@ -41,7 +43,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	if len(files) == 0 {
 		log.Fatal("not found any file *.proto")
 	}
@@ -70,7 +72,7 @@ func main() {
 }
 
 type rpcService struct {
-	PkgName, ServiceName, MethodName, Request, Response string
+	Prefix, PkgName, ServiceName, MethodName, Request, Response string
 }
 
 func readProtoFile(dir string) ([]rpcService, error) {
@@ -96,6 +98,7 @@ func readProtoFile(dir string) ([]rpcService, error) {
 		}),
 		proto.WithRPC(func(rpc *proto.RPC) {
 			methods = append(methods, rpcService{
+				Prefix:      prefix,
 				PkgName:     pkgName,
 				ServiceName: serviceName,
 				MethodName:  rpc.Name,
